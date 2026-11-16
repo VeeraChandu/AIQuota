@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="assets/icon.png" alt="AntigravityBar Icon" width="128" height="128" style="border-radius: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+  <img src="assets/icon.png" alt="AIQuota icon" width="128" height="128" style="border-radius: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
 </p>
 
-<h1 align="center">AntigravityBar</h1>
+<h1 align="center">AIQuota</h1>
 
 <p align="center">
-  <strong>Instant quota & rate-limit monitoring for Google Antigravity.</strong><br>
+  <strong>Instant quota & rate-limit monitoring for AI coding tools — Google Antigravity and Claude Code.</strong><br>
   A lightweight native macOS menu bar companion + a sub-second CLI utility.
 </p>
 
@@ -19,11 +19,11 @@
 
 ---
 
-## 💡 Why AntigravityBar?
+## 💡 Why AIQuota?
 
-[Google Antigravity](https://antigravity.google) is a powerful agentic development workstation, but it is a heavy Electron environment. When you're deep in the zone inside your code editor or terminal, switching to the desktop app and digging through menus just to check whether your **Claude/GPT weekly limit** or **Gemini 5-hour quota** has refreshed breaks flow.
+AI coding tools like [Google Antigravity](https://antigravity.google) and [Claude Code](https://claude.com/claude-code) ration usage in 5-hour and weekly windows, and each one hides its remaining quota in a different place. Checking whether your **Claude weekly limit** or **Gemini 5-hour quota** has refreshed means leaving your editor or terminal and breaking flow.
 
-**AntigravityBar** gives you that visibility instantly:
+**AIQuota** gives you that visibility instantly:
 - **At a glance in your macOS Menu Bar:** Live remaining percentages and reset countdowns always visible.
 - **In your Terminal in ~0.6s:** Type `limits` anywhere for clean visual progress bars, or feed `--short` directly into your `tmux` statusline or Starship prompt.
 
@@ -35,9 +35,10 @@
   - **Gemini Models** (Gemini Flash, Gemini Pro) across 5-hour and weekly windows.
   - **Claude and GPT Models** (Claude 3.5 Sonnet, Opus, GPT-OSS) with paused-state detection and countdown timers.
   - **Plan Tier & AI Credits** (Google AI Pro, Enterprise, or Free tiers).
-- **🍎 Apple HIG Compliant**: Native Swift menu bar app using dynamic template icons (`@1x` and `@2x` Retina), dark/light mode responsiveness, and complete macOS icon set (16px to 1024px).
+- **🍎 Apple HIG Compliant**: Native Swift menu bar app using an SF Symbol template icon, dark/light mode responsiveness, and complete macOS icon set (16px to 1024px).
 - **🔒 Zero Configuration & Private**: Reads active session tokens directly from your local **macOS Keychain** (`service: "gemini"`). No credentials to type, no config files to manage, and zero data leaves your machine except direct HTTPS calls to Google Cloud Code endpoints.
 - **🚀 Ultra Lightweight**: Sits quietly at **0% idle CPU** and under **15MB RAM**—no Electron, no web views, no background daemons.
+- **🔀 Claude Code quotas too**: pick *Antigravity*, *Claude Code* or *Both* from the menu's **Show** submenu (remembered across launches). Reads Claude Code's own login from the Keychain; CLI: `limits --claude`.
 - **💻 First-Class CLI (`limits`)**: ANSI color-coded bars, `--short` one-liner output, and `--json` format for scripting.
 
 ---
@@ -92,17 +93,17 @@ Available AI Credits: 0
 Clone the repository and run the automated build script:
 
 ```bash
-git clone https://github.com/VeeraChandu/AntigravityBar.git
-cd AntigravityBar
+git clone https://github.com/VeeraChandu/AIQuota.git
+cd AIQuota
 chmod +x build.sh
 ./build.sh
 ```
 
 What `build.sh` does automatically:
 1. Compiles the native Swift executable with `-O` optimizations.
-2. Bundles the macOS App bundle (`/Applications/AntigravityBar.app`) with full Apple HIG icon scale sets.
+2. Bundles the macOS App bundle (`/Applications/AIQuota.app`) with full Apple HIG icon scale sets.
 3. Ad-hoc codesigns the app bundle and registers it with macOS `LaunchServices`.
-4. Installs the CLI utility to `~/.local/bin/agy-limits` and creates convenient symlinks: `limits` and `antigravity-limits`.
+4. Installs the CLI utility to `~/.local/bin/aiquota` and creates a convenient `limits` symlink.
 
 > **Note:** Make sure `~/.local/bin` is in your shell `PATH`:
 > ```bash
@@ -144,7 +145,7 @@ set -g status-interval 180
 Add a custom command in `~/.config/starship.toml`:
 
 ```toml
-[custom.antigravity]
+[custom.aiquota]
 command = "limits --short"
 when = "command -v limits"
 style = "bold cyan"
@@ -160,8 +161,8 @@ symbol = "✦ "
 flowchart TD
     subgraph macOS Environment
         KC[macOS Keychain\nservice: gemini / account: antigravity]
-        CLI[Terminal CLI\nlimits / agy-limits]
-        Bar[AntigravityBar.app\nNative Swift Menu Bar]
+        CLI[Terminal CLI\nlimits / aiquota]
+        Bar[AIQuota.app\nNative Swift Menu Bar]
     end
 
     subgraph Google Cloud Code Backend
@@ -176,15 +177,15 @@ flowchart TD
     Bar -->|Live Updates & Auto-refresh| MenuBar[macOS Menu Bar]
 ```
 
-1. **Local Authentication**: Antigravity persists its session in the macOS Keychain under `service: "gemini"`, `account: "antigravity"`. AntigravityBar reads the `go-keyring-base64` payload directly using Apple's `security` framework, decrypting access and identity claims without requiring hardcoded secrets or web logins.
+1. **Local Authentication**: Antigravity persists its session in the macOS Keychain under `service: "gemini"`, `account: "antigravity"`. AIQuota reads the `go-keyring-base64` payload directly using Apple's `security` framework, decrypting access and identity claims without requiring hardcoded secrets or web logins.
 2. **Quota Ingestion**: Queries Google Cloud Code's internal endpoint (`daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary`) alongside `loadCodeAssist`.
-3. **Session Auto-Refresh**: If an access token expires, AntigravityBar invokes a headless token renewal probe to keep the status bar live seamlessly.
+3. **Session Auto-Refresh**: If an access token expires, AIQuota invokes a headless token renewal probe to keep the status bar live seamlessly.
 
 ---
 
 ## 🔒 Privacy & Security
 
-- **No Remote Telemetry**: AntigravityBar has zero tracking, zero external metrics servers, and no analytics.
+- **No Remote Telemetry**: AIQuota has zero tracking, zero external metrics servers, and no analytics.
 - **Local Credentials**: Credentials never touch disk in plaintext; they are read ephemerally from macOS Keychain memory.
 - **Direct Traffic**: Network traffic flows directly between your machine (`urllib` / Apple Foundation) and Google's official Cloud Code endpoints over HTTPS.
 
@@ -212,9 +213,9 @@ source ~/.zshrc
 </details>
 
 <details>
-<summary><strong>How do I start AntigravityBar automatically on macOS login?</strong></summary>
+<summary><strong>How do I start AIQuota automatically on macOS login?</strong></summary>
 
-Go to **System Settings → General → Login Items** and add `AntigravityBar.app` from your `/Applications` folder.
+Go to **System Settings → General → Login Items** and add `AIQuota.app` from your `/Applications` folder.
 </details>
 
 ---

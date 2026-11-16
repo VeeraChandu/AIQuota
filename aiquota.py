@@ -139,10 +139,83 @@ def fetch_all():
 
     return results
 
+CLAUDE_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+CLAUDE_BUCKETS = [  # (api key, label, window)
+    ("five_hour", "Five Hour Limit Remaining", "5h"),
+    ("seven_day", "Weekly Limit Remaining", "weekly"),
+    ("seven_day_opus", "Weekly Opus Remaining", "weekly"),
+    ("seven_day_sonnet", "Weekly Sonnet Remaining", "weekly"),
+]
+
+def fetch_claude():
+    """Claude Code quota via its OAuth token in the keychain, shaped like the --json Antigravity output."""
+    try:
+        raw = subprocess.check_output(
+            ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
+            stderr=subprocess.DEVNULL).decode()
+        oauth = json.loads(raw)["claudeAiOauth"]
+    except Exception:
+        raise RuntimeError("Claude Code credentials not found in Keychain (run `claude` and log in).")
+    req = urllib.request.Request(CLAUDE_USAGE_URL, headers={
+        "Authorization": f"Bearer {oauth['accessToken']}",
+        "anthropic-beta": "oauth-2025-04-20",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            usage = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        # ponytail: no token refresh here; Claude Code renews it on next use
+        raise RuntimeError("Claude token expired - open Claude Code once to refresh." if e.code == 401 else f"HTTP {e.code}")
+    buckets = []
+    for key, label, window in CLAUDE_BUCKETS:
+        b = usage.get(key)
+        if b and b.get("utilization") is not None:
+            buckets.append({
+                "id": key, "name": label, "window": window,
+                "remainingFraction": max(0.0, 1 - b["utilization"] / 100),
+                "resetTime": b.get("resets_at"),
+                "resetsIn": parse_time_remaining(b.get("resets_at")),
+                "disabled": False, "description": None,
+            })
+    plan = (oauth.get("subscriptionType") or "").capitalize()
+    return {
+        "email": None,
+        "tier": {"name": f"Claude {plan}".strip(), "id": oauth.get("subscriptionType")},
+        "availableCredits": 0,
+        "groups": [{"name": "Claude Code", "description": "", "buckets": buckets}],
+    }
+
+def print_claude(payload, use_color):
+    BOLD = "\033[1m" if use_color else ""
+    RESET = "\033[0m" if use_color else ""
+    DIM = "\033[90m" if use_color else ""
+    print(f"\n{BOLD}\033[96m✦ Claude Code Usage Limits{RESET} {DIM}({payload['tier']['name']}){RESET}" if use_color
+          else f"\n✦ Claude Code Usage Limits ({payload['tier']['name']})")
+    print(f"{DIM}{'─' * 56}{RESET}")
+    for b in payload["groups"][0]["buckets"]:
+        rem = b["remainingFraction"]
+        color = get_color(rem) if use_color else ""
+        print(f"  {b['name']:<26} {color}[{make_bar(rem)}]{RESET} {BOLD}{rem*100:>3.0f}%{RESET}  {DIM}resets in {b['resetsIn']}{RESET}")
+    print(f"{DIM}{'─' * 56}{RESET}\n")
+
 def main():
     use_color = sys.stdout.isatty() and "--no-color" not in sys.argv
     is_json = "--json" in sys.argv
     is_short = "--short" in sys.argv
+
+    if "--claude" in sys.argv:
+        try:
+            payload = fetch_claude()
+        except Exception as e:
+            print(json.dumps({"error": str(e)}) if is_json else f"Error fetching limits: {e}", file=sys.stdout if is_json else sys.stderr)
+            sys.exit(1)
+        if is_json:
+            print(json.dumps(payload, indent=2))
+        elif is_short:
+            print("Claude Code: " + " | ".join(f"{b['window']} {b['remainingFraction']*100:.0f}% ({b['resetsIn']})" for b in payload["groups"][0]["buckets"][:2]))
+        else:
+            print_claude(payload, use_color)
+        return
 
     try:
         data = fetch_all()
