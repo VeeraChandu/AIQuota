@@ -56,7 +56,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupIcon()
         
         if let button = statusItem.button {
-            button.title = " Limits: ..."
+            button.title = ""
         }
         
         buildInitialMenu()
@@ -101,7 +101,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func refreshClicked() {
         if let button = statusItem.button {
-            button.title = " Fetching..."
+            button.title = " …"
         }
         refreshLimits()
     }
@@ -140,38 +140,33 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func modeClicked(_ sender: NSMenuItem) {
         guard let m = Mode(rawValue: sender.title) else { return }
         mode = m
-        statusItem.button?.title = " Fetching..."
+        statusItem.button?.title = " …"
         refreshLimits()
-    }
-
-    func pct(_ b: LimitResponse.Bucket) -> String {
-        "\(Int(round((b.remainingFraction ?? 0) * 100)))% (\(b.resetsIn ?? "N/A"))"
     }
 
     func updateUI() {
         let mode = self.mode
         var parts: [String] = []
 
+        // ponytail: percentages only — reset countdowns live in the dropdown to keep the bar narrow
+        func short(_ b: LimitResponse.Bucket?) -> String {
+            b.map { "\(Int(round(($0.remainingFraction ?? 0) * 100)))%" } ?? "–"
+        }
         if mode != .claude {
-            var gShort = "N/A", cShort = "N/A"
-            for g in lastAG?.groups ?? [] {
-                let name = (g.name ?? "").lowercased()
-                if name.contains("gemini"), let b = g.buckets?.first(where: { $0.window == "5h" }) {
-                    gShort = pct(b)
-                } else if name.contains("claude") || name.contains("gpt"),
-                          let b = g.buckets?.first(where: { $0.window == "weekly" }) {
-                    cShort = pct(b)
-                }
+            var g: LimitResponse.Bucket?, c: LimitResponse.Bucket?
+            for grp in lastAG?.groups ?? [] {
+                let name = (grp.name ?? "").lowercased()
+                if name.contains("gemini") { g = grp.buckets?.first(where: { $0.window == "5h" }) }
+                else if name.contains("claude") || name.contains("gpt") { c = grp.buckets?.first(where: { $0.window == "weekly" }) }
             }
-            parts.append(mode == .both ? "G: \(gShort)" : "G: \(gShort) | C: \(cShort)")
+            parts.append(mode == .both ? "G \(short(g))" : "G \(short(g)) · C \(short(c))")
         }
         if mode != .antigravity {
             let bs = lastCC?.groups?.first?.buckets ?? []
-            let five = bs.first(where: { $0.window == "5h" }).map(pct) ?? "N/A"
-            let week = bs.first(where: { $0.window == "weekly" }).map { "\(Int(round(($0.remainingFraction ?? 0) * 100)))%" } ?? "N/A"
-            parts.append("CC: \(five) | W: \(week)")
+            let five = bs.first(where: { $0.window == "5h" }), week = bs.first(where: { $0.window == "weekly" })
+            parts.append(mode == .both ? "CC \(short(five))" : "CC \(short(five)) · W \(short(week))")
         }
-        statusItem.button?.title = " " + parts.joined(separator: " | ")
+        statusItem.button?.title = " " + parts.joined(separator: " · ")
 
         // Build Dropdown Menu
         let menu = NSMenu()
